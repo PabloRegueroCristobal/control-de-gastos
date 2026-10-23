@@ -1,0 +1,415 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <title>Control de Gastos</title>
+  <style>
+    :root {
+      --primary: #2563eb;
+      --primary-dark: #1d4ed8;
+      --bg: #f8fafc;
+      --card-bg: #ffffff;
+      --text: #0f172a;
+      --text-muted: #64748b;
+      --border: #e2e8f0;
+      --danger: #ef4444;
+      --success: #10b981;
+    }
+
+    * { box-sizing: border-box; margin: 0; padding: 0; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif; }
+    body { background-color: var(--bg); color: var(--text); display: flex; flex-direction: column; height: 100vh; overflow: hidden; }
+
+    /* Contenido Principal */
+    main { flex: 1; overflow-y: auto; padding: 16px; padding-bottom: 80px; }
+    .tab-content { display: none; }
+    .tab-content.active { display: block; }
+
+    h2 { font-size: 1.25rem; font-weight: 700; margin-bottom: 16px; color: var(--text); }
+    
+    /* Targetas y Formularios */
+    .card { background: var(--card-bg); border-radius: 12px; padding: 16px; border: 1px solid var(--border); margin-bottom: 16px; box-shadow: 0 1px 3px rgba(0,0,0,0.05); }
+    .form-group { margin-bottom: 12px; }
+    label { display: block; font-size: 0.85rem; font-weight: 600; color: var(--text-muted); margin-bottom: 4px; }
+    input, select { width: 100%; padding: 10px 12px; border-radius: 8px; border: 1px solid var(--border); font-size: 0.95rem; background: #fff; color: var(--text); outline: none; }
+    input:focus, select:focus { border-color: var(--primary); }
+    .form-row { display: flex; gap: 8px; }
+
+    .btn { background: var(--primary); color: white; border: none; padding: 12px; border-radius: 8px; font-weight: 600; width: 100%; cursor: pointer; font-size: 0.95rem; }
+    .btn:active { background: var(--primary-dark); }
+    
+    /* Listas */
+    .list-item { display: flex; justify-content: space-between; align-items: center; padding: 12px 0; border-bottom: 1px solid var(--border); }
+    .list-item:last-child { border-bottom: none; }
+    .badge { padding: 3px 8px; border-radius: 12px; font-size: 0.75rem; font-weight: 600; }
+    .badge-yes { background: #d1fae5; color: #065f46; }
+    .badge-no { background: #fee2e2; color: #991b1b; }
+
+    /* Tablas */
+    .table-container { overflow-x: auto; -webkit-overflow-scrolling: touch; }
+    table { width: 100%; border-collapse: collapse; font-size: 0.8rem; text-align: left; }
+    th, td { padding: 8px; border-bottom: 1px solid var(--border); white-space: nowrap; }
+    th { background: #f1f5f9; color: var(--text-muted); font-weight: 600; }
+
+    /* Resumen Cards */
+    .summary-box { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-bottom: 16px; }
+    .kpi { background: var(--card-bg); padding: 12px; border-radius: 12px; border: 1px solid var(--border); text-align: center; }
+    .kpi-val { font-size: 1.3rem; font-weight: 700; color: var(--primary); margin-top: 4px; }
+    .kpi-val.danger { color: var(--danger); }
+    .kpi-val.success { color: var(--success); }
+
+    /* Barra de Navegación Inferior */
+    nav { position: fixed; bottom: 0; left: 0; right: 0; height: 65px; background: var(--card-bg); border-top: 1px solid var(--border); display: flex; justify-content: space-around; align-items: center; z-index: 100; }
+    .nav-btn { background: none; border: none; flex: 1; height: 100%; display: flex; flex-direction: column; align-items: center; justify-content: center; color: var(--text-muted); font-size: 0.75rem; font-weight: 500; cursor: pointer; }
+    .nav-btn svg { width: 22px; height: 22px; fill: none; stroke: currentColor; stroke-width: 2; margin-bottom: 3px; }
+    .nav-btn.active { color: var(--primary); font-weight: 700; }
+  </style>
+</head>
+<body>
+
+  <main>
+    <!-- Pestaña 1: Categorías (Izquierda) -->
+    <section id="tab-categorias" class="tab-content active">
+      <h2>Categorías y Presupuestos</h2>
+      <div class="card">
+        <form id="form-categoria">
+          <div class="form-group">
+            <label>Nueva Categoría</label>
+            <input type="text" id="cat-nombre" placeholder="Ej. Restaurantes" required>
+          </div>
+          <div class="form-row">
+            <div class="form-group" style="flex:1;">
+              <label>Tipo de Gasto</label>
+              <select id="cat-tipo" required>
+                <option value="Necesarios">Necesarios</option>
+                <option value="Día a día">Día a día</option>
+                <option value="Cosas">Cosas</option>
+                <option value="Experiencias">Experiencias</option>
+                <option value="Pasiones">Pasiones</option>
+                <option value="Con gente">Con gente</option>
+                <option value="Comprar tiempo">Comprar tiempo</option>
+              </select>
+            </div>
+            <div class="form-group" style="flex:1;">
+              <label>Presupuesto (€)</label>
+              <input type="number" step="0.01" id="cat-presupuesto" placeholder="0.00">
+            </div>
+          </div>
+          <button type="submit" class="btn">Añadir Categoría</button>
+        </form>
+      </div>
+
+      <div class="card">
+        <div class="table-container">
+          <table>
+            <thead>
+              <tr>
+                <th>Categoría</th>
+                <th>Tipo</th>
+                <th>Presupuesto/mes</th>
+              </tr>
+            </thead>
+            <tbody id="lista-categorias"></tbody>
+          </table>
+        </div>
+      </div>
+    </section>
+
+    <!-- Pestaña 2: Movimientos (Centro) -->
+    <section id="tab-movimientos" class="tab-content">
+      <h2>Nuevo Movimiento</h2>
+      <div class="card">
+        <form id="form-movimiento">
+          <div class="form-row">
+            <div class="form-group" style="flex:1;">
+              <label>Fecha</label>
+              <input type="date" id="mov-fecha" required>
+            </div>
+            <div class="form-group" style="flex:1;">
+              <label>Importe (€)</label>
+              <input type="number" step="0.01" id="mov-importe" placeholder="-25.00" required>
+            </div>
+          </div>
+          <div class="form-group">
+            <label>Concepto</label>
+            <input type="text" id="mov-concepto" placeholder="Ej. Cena con amigos" required>
+          </div>
+          <div class="form-row">
+            <div class="form-group" style="flex:1;">
+              <label>Categoría</label>
+              <select id="mov-categoria" required></select>
+            </div>
+            <div class="form-group" style="flex:1;">
+              <label>¿Mereció la pena?</label>
+              <select id="mov-merecio" required>
+                <option value="Sí">Sí</option>
+                <option value="No">No</option>
+              </select>
+            </div>
+          </div>
+          <button type="submit" class="btn">Guardar Gasto</button>
+        </form>
+      </div>
+
+      <h2>Historial de Movimientos</h2>
+      <div class="card" id="contenedor-movimientos"></div>
+    </section>
+
+    <!-- Pestaña 3: Resumen (Derecha) -->
+    <section id="tab-resumen" class="tab-content">
+      <h2>Resumen Anual (<span id="resumen-year"></span>)</h2>
+      
+      <div class="summary-box">
+        <div class="kpi">
+          <label>Total Gastado</label>
+          <div class="kpi-val" id="kpi-total-gasto">0.00 €</div>
+        </div>
+        <div class="kpi">
+          <label>Dinero que Sobra / Falta</label>
+          <div class="kpi-val" id="kpi-sobra">0.00 €</div>
+        </div>
+      </div>
+
+      <div class="card">
+        <label style="margin-bottom:8px;">Gastos No Merecidos</label>
+        <div class="kpi-val danger" id="kpi-no-merecio" style="text-align:left;">0.00 €</div>
+      </div>
+
+      <div class="card">
+        <h2>Desglose Mensual por Categoría</h2>
+        <div class="table-container">
+          <table id="tabla-resumen">
+            <thead>
+              <tr>
+                <th>Categoría</th>
+                <th>Ene</th><th>Feb</th><th>Mar</th><th>Abr</th><th>May</th><th>Jun</th>
+                <th>Jul</th><th>Ago</th><th>Sep</th><th>Oct</th><th>Nov</th><th>Dic</th>
+                <th>Total Año</th>
+                <th>Presup. Año</th>
+                <th>Te sobra / te pasas</th>
+              </tr>
+            </thead>
+            <tbody id="body-resumen"></tbody>
+          </table>
+        </div>
+      </div>
+    </section>
+  </main>
+
+  <!-- Navegación Inferior -->
+  <nav>
+    <button class="nav-btn active" onclick="switchTab('tab-categorias', this)">
+      <svg viewBox="0 0 24 24"><path d="M4 6h16M4 10h16M4 14h16M4 18h16"/></svg>
+      Categorías
+    </button>
+    <button class="nav-btn" onclick="switchTab('tab-movimientos', this)">
+      <svg viewBox="0 0 24 24"><path d="M12 4v16m-8-8h16"/></svg>
+      Movimientos
+    </button>
+    <button class="nav-btn" onclick="switchTab('tab-resumen', this)">
+      <svg viewBox="0 0 24 24"><path d="M18 20V10M12 20V4M6 20v-6"/></svg>
+      Resumen
+    </button>
+  </nav>
+
+  <script>
+    // Inicialización de Datos por Defecto basados en el Excel
+    const defaultCategorias = [
+      { nombre: "Vivienda (alquiler / hipoteca)", tipo: "Necesarios", presupuesto: 0 },
+      { nombre: "Luz, agua, gas e internet", tipo: "Necesarios", presupuesto: 0 },
+      { nombre: "Supermercado", tipo: "Necesarios", presupuesto: 0 },
+      { nombre: "Transporte y coche", tipo: "Necesarios", presupuesto: 40 },
+      { nombre: "Seguros", tipo: "Necesarios", presupuesto: 0 },
+      { nombre: "Salud y deporte", tipo: "Necesarios", presupuesto: 18.8 },
+      { nombre: "Restaurantes y bares", tipo: "Día a día", presupuesto: 70 },
+      { nombre: "Comida a domicilio", tipo: "Día a día", presupuesto: 0 },
+      { nombre: "Suscripciones", tipo: "Día a día", presupuesto: 0 },
+      { nombre: "Ropa y calzado", tipo: "Cosas", presupuesto: 20 },
+      { nombre: "Tecnología", tipo: "Cosas", presupuesto: 0 },
+      { nombre: "Casa y decoración", tipo: "Cosas", presupuesto: 0 },
+      { nombre: "Viajes", tipo: "Experiencias", presupuesto: 0 },
+      { nombre: "Planes y actividades", tipo: "Experiencias", presupuesto: 0 },
+      { nombre: "Formación y libros", tipo: "Experiencias", presupuesto: 20 },
+      { nombre: "Mi pasión (motos, fútbol...)", tipo: "Pasiones", presupuesto: 0 },
+      { nombre: "Regalos", tipo: "Con gente", presupuesto: 30 },
+      { nombre: "Planes con familia y amigos", tipo: "Con gente", presupuesto: 50 },
+      { nombre: "Taxis y atajos", tipo: "Comprar tiempo", presupuesto: 0 },
+      { nombre: "Limpieza y servicios del hogar", tipo: "Comprar tiempo", presupuesto: 0 },
+      { nombre: "Otros", tipo: "Día a día", presupuesto: 50 },
+      { nombre: "Inversiones", tipo: "Necesarios", presupuesto: 360 }
+    ];
+
+    let categorias = JSON.parse(localStorage.getItem('app_categorias')) || defaultCategorias;
+    let movimientos = JSON.parse(localStorage.getItem('app_movimientos')) || [];
+
+    // Inicializar Fecha de hoy
+    document.getElementById('mov-fecha').valueToDate = new Date();
+    document.getElementById('mov-fecha').value = new Date().toISOString().substring(0, 10);
+    document.getElementById('resumen-year').innerText = new Date().getFullYear();
+
+    // Navegación entre pestañas
+    function switchTab(tabId, btn) {
+      document.querySelectorAll('.tab-content').forEach(t => t.classList.remove('active'));
+      document.querySelectorAll('.nav-btn').forEach(b => b.classList.remove('active'));
+      document.getElementById(tabId).classList.add('active');
+      btn.classList.add('active');
+      if(tabId === 'tab-resumen') renderResumen();
+    }
+
+    // Guardar en LocalStorage
+    function saveData() {
+      localStorage.setItem('app_categorias', JSON.stringify(categorias));
+      localStorage.setItem('app_movimientos', JSON.stringify(movimientos));
+      renderCategorias();
+      renderMovimientos();
+    }
+
+    // Renderizar Categorías
+    function renderCategorias() {
+      const tbody = document.getElementById('lista-categorias');
+      const selectMov = document.getElementById('mov-categoria');
+      tbody.innerHTML = '';
+      selectMov.innerHTML = '';
+
+      categorias.forEach(cat => {
+        tbody.innerHTML += `<tr>
+          <td><strong>${cat.nombre}</strong></td>
+          <td>${cat.tipo}</td>
+          <td>${parseFloat(cat.presupuesto).toFixed(2)} €</td>
+        </tr>`;
+
+        selectMov.innerHTML += `<option value="${cat.nombre}">${cat.nombre}</option>`;
+      });
+    }
+
+    // Formulario Categoría
+    document.getElementById('form-categoria').addEventListener('submit', (e) => {
+      e.preventDefault();
+      const nombre = document.getElementById('cat-nombre').value;
+      const tipo = document.getElementById('cat-tipo').value;
+      const presupuesto = parseFloat(document.getElementById('cat-presupuesto').value) || 0;
+
+      categorias.push({ nombre, tipo, presupuesto });
+      saveData();
+      e.target.reset();
+    });
+
+    // Formulario Movimiento (Aplica fórmulas automáticas del Excel)
+    document.getElementById('form-movimiento').addEventListener('submit', (e) => {
+      e.preventDefault();
+      const fechaStr = document.getElementById('mov-fecha').value;
+      const fecha = new Date(fechaStr);
+      const concepto = document.getElementById('mov-concepto').value;
+      const importeRaw = parseFloat(document.getElementById('mov-importe').value);
+      const categoriaNombre = document.getElementById('mov-categoria').value;
+      const merecio = document.getElementById('mov-merecio').value;
+
+      // Fórmulas automáticas
+      const gasto = Math.abs(importeRaw); // Convierte a positivo
+      const catObj = categorias.find(c => c.nombre === categoriaNombre);
+      const tipoGasto = catObj ? catObj.tipo : 'Sin categoría';
+      const mes = fecha.getMonth() + 1; // 1-12
+      const ano = fecha.getFullYear();
+
+      movimientos.unshift({
+        fecha: fechaStr,
+        concepto,
+        importe: importeRaw,
+        categoria: categoriaNombre,
+        merecio,
+        gasto,
+        tipoGasto,
+        mes,
+        ano
+      });
+
+      saveData();
+      document.getElementById('mov-concepto').value = '';
+      document.getElementById('mov-importe').value = '';
+    });
+
+    // Renderizar Movimientos
+    function renderMovimientos() {
+      const container = document.getElementById('contenedor-movimientos');
+      if (movimientos.length === 0) {
+        container.innerHTML = '<p style="color:var(--text-muted); text-align:center;">No hay gastos registrados.</p>';
+        return;
+      }
+
+      container.innerHTML = movimientos.map(m => `
+        <div class="list-item">
+          <div>
+            <strong>${m.concepto}</strong> <br>
+            <small style="color:var(--text-muted);">${m.fecha} · ${m.categoria} (${m.tipoGasto})</small>
+          </div>
+          <div style="text-align:right;">
+            <span style="font-weight:700; color:var(--text);">${m.gasto.toFixed(2)} €</span> <br>
+            <span class="badge ${m.merecio === 'Sí' ? 'badge-yes' : 'badge-no'}">${m.merecio}</span>
+          </div>
+        </div>
+      `).join('');
+    }
+
+    // Renderizar Resumen y Fórmulas
+    function renderResumen() {
+      const currentYear = new Date().getFullYear();
+      const tbody = document.getElementById('body-resumen');
+      tbody.innerHTML = '';
+
+      let totalAnualGasto = 0;
+      let totalAnualPresupuesto = 0;
+      let totalNoMerecio = 0;
+
+      // Calcular por categoría
+      categorias.forEach(cat => {
+        let filaHtml = `<tr><td><strong>${cat.nombre}</strong></td>`;
+        let totalCatAño = 0;
+
+        for (let m = 1; m <= 12; m++) {
+          const sumaMes = movimientos
+            .filter(mov => mov.categoria === cat.nombre && mov.mes === m && mov.ano === currentYear)
+            .reduce((acc, mov) => acc + mov.gasto, 0);
+
+          totalCatAño += sumaMes;
+          filaHtml += `<td>${sumaMes > 0 ? sumaMes.toFixed(1) : '-'}</td>`;
+        }
+
+        const presupAño = cat.presupuesto * 12;
+        const diferencia = presupAño - totalCatAño; // Te sobra / te pasas
+
+        totalAnualGasto += totalCatAño;
+        totalAnualPresupuesto += presupAño;
+
+        const diffClass = diferencia < 0 ? 'color:var(--danger);font-weight:bold;' : 'color:var(--success);';
+
+        filaHtml += `
+          <td><strong>${totalCatAño.toFixed(2)} €</strong></td>
+          <td>${presupAño.toFixed(2)} €</td>
+          <td style="${diffClass}">${diferencia.toFixed(2)} €</td>
+        </tr>`;
+
+        tbody.innerHTML += filaHtml;
+      });
+
+      // Gastos "No mereció la pena"
+      totalNoMerecio = movimientos
+        .filter(mov => mov.merecio === 'No' && mov.ano === currentYear)
+        .reduce((acc, mov) => acc + mov.gasto, 0);
+
+      // Actualizar KPIs superiores
+      const sobranteTotal = totalAnualPresupuesto - totalAnualGasto;
+      document.getElementById('kpi-total-gasto').innerText = `${totalAnualGasto.toFixed(2)} €`;
+      
+      const kpiSobra = document.getElementById('kpi-sobra');
+      kpiSobra.innerText = `${sobranteTotal.toFixed(2)} €`;
+      kpiSobra.className = `kpi-val ${sobranteTotal >= 0 ? 'success' : 'danger'}`;
+
+      document.getElementById('kpi-no-merecio').innerText = `${totalNoMerecio.toFixed(2)} €`;
+    }
+
+    // Carga inicial
+    renderCategorias();
+    renderMovimientos();
+  </script>
+</body>
+</html>
